@@ -22,6 +22,7 @@ The notes stay with the source so development can continue from the established 
 ## Project Rules
 
 ### Canonical executable file
+
 SBF has one canonical executable plugin file:
 
 - `sbf.js`
@@ -29,6 +30,7 @@ SBF has one canonical executable plugin file:
 Older executable versions must never be copied into the repository, nested inside folders, or selected dynamically at runtime.
 
 ### Versioning
+
 SBF uses whole-number release progression:
 
 `1.0.0 -> 2.0.0 -> 3.0.0`
@@ -36,6 +38,7 @@ SBF uses whole-number release progression:
 Patch/minor release progression is not part of the project's release convention.
 
 ### General-purpose architecture
+
 SBF is not a bone-only framework.
 
 The word "Forge" describes the project identity, not a restriction on the kind of feature SBF can host.
@@ -43,6 +46,7 @@ The word "Forge" describes the project identity, not a restriction on the kind o
 A future system may work with bones, animation, geometry, exporters, generators, analysis, utilities, workflow tools, or another Blockbench capability without requiring the core foundation to be rewritten around that domain.
 
 ### Mobile
+
 SBF is not the mobile-optimization plugin. Mobile optimization belongs to the separate MOB project unless explicitly changed later.
 
 ---
@@ -52,17 +56,20 @@ SBF is not the mobile-optimization plugin. Mobile optimization belongs to the se
 ## Canonical Loader + Core Foundation
 
 ### File
+
 `sbf.js`
 
 ### Purpose
-SBF 1.0.0 now contains both the canonical loader and the first general-purpose core foundation.
 
-The foundation is intentionally domain-neutral. It provides infrastructure for future systems instead of implementing a particular modeling feature itself.
+SBF 1.0.0 contained the canonical loader and the first general-purpose core foundation.
+
+The foundation was intentionally domain-neutral. It provided infrastructure for future systems instead of implementing a particular modeling feature itself.
 
 ### Blockbench integration
-The plugin uses Blockbench's current `Plugin.register` lifecycle and supports the `both` variant. The current Blockbench plugin documentation specifies that the plugin ID should match the JavaScript filename without its extension and that `onload` and `onunload` are lifecycle hooks. citeturn0search0
 
-### Current identity
+The plugin uses Blockbench's `Plugin.register` lifecycle and supports the `both` variant. Current Blockbench plugin documentation specifies that the plugin ID should match the JavaScript filename without its extension and that `onload` and `onunload` are lifecycle hooks. citeturn0search1
+
+### Current identity at 1.0.0
 
 - Plugin ID: `sbf`
 - Plugin title: `SBF — System Forge`
@@ -71,11 +78,9 @@ The plugin uses Blockbench's current `Plugin.register` lifecycle and supports th
 
 ### Load confirmation
 
-When the plugin loads, the user receives:
+At 1.0.0 the loader displayed:
 
 `SBF — System Forge v1.0.0 has been loaded.`
-
-The loader prefers Blockbench's message-box API and falls back to quick/status messaging when necessary. These message APIs are part of Blockbench's current UI API documentation. citeturn0search2
 
 ---
 
@@ -84,9 +89,11 @@ The loader prefers Blockbench's message-box API and falls back to quick/status m
 ## 1. Private Runtime
 
 ### Purpose
+
 Provides one controlled runtime for SBF.
 
 ### Responsibilities
+
 - Tracks whether SBF is loaded.
 - Owns registered systems.
 - Owns registered UI actions.
@@ -94,6 +101,7 @@ Provides one controlled runtime for SBF.
 - Owns cleanup functions.
 
 ### Boundary
+
 The runtime is kept inside the plugin's isolated execution context. It is not placed on the global object.
 
 ---
@@ -101,9 +109,11 @@ The runtime is kept inside the plugin's isolated execution context. It is not pl
 ## 2. System Registry
 
 ### Purpose
-Provides a universal registration mechanism for future SBF systems.
+
+Provides a universal registration mechanism for SBF systems.
 
 ### Responsibilities
+
 - Register systems by unique ID.
 - Prevent duplicate system IDs.
 - Store system metadata.
@@ -114,6 +124,7 @@ Provides a universal registration mechanism for future SBF systems.
 - Remove systems cleanly.
 
 ### Important design decision
+
 A system represents a feature domain, not a specific object type.
 
 Therefore the foundation does not assume:
@@ -130,9 +141,11 @@ This keeps the foundation usable for future features that deviate completely fro
 ## 3. Lifecycle and Cleanup
 
 ### Purpose
+
 Prevent systems from leaving behind actions, listeners, or other runtime resources after unloading.
 
 ### Responsibilities
+
 - Register cleanup functions.
 - Execute cleanup in reverse registration order.
 - Allow individual cleanup functions to be released early.
@@ -140,6 +153,7 @@ Prevent systems from leaving behind actions, listeners, or other runtime resourc
 - Clear runtime state during plugin unload.
 
 ### Boundary
+
 The foundation manages lifecycle ownership. Individual systems remain responsible for correctly describing their own resources.
 
 ---
@@ -147,16 +161,17 @@ The foundation manages lifecycle ownership. Individual systems remain responsibl
 ## 4. Event Adapter
 
 ### Purpose
+
 Provide one controlled path for Blockbench event listeners.
 
 ### Responsibilities
+
 - Register Blockbench event callbacks.
 - Return cleanup handles.
 - Automatically remove listeners during SBF unload.
 
-Blockbench documents `Blockbench.on` and `Blockbench.removeListener` for event registration/removal; SBF wraps that lifecycle so future systems do not need to reinvent cleanup handling. citeturn0search3
-
 ### Boundary
+
 The event adapter does not decide which events a system should listen for.
 
 ---
@@ -164,17 +179,18 @@ The event adapter does not decide which events a system should listen for.
 ## 5. UI Action Adapter
 
 ### Purpose
+
 Provide a consistent way for future systems to create Blockbench actions.
 
 ### Responsibilities
+
 - Validate action IDs.
 - Prevent duplicate action IDs.
 - Create or accept Blockbench Action instances.
 - Track actions for cleanup.
 
-Blockbench's plugin documentation uses the Action system for plugin functionality and demonstrates deleting actions during `onunload`. citeturn0search0
-
 ### Boundary
+
 The foundation does not decide where an action belongs in Blockbench's menus or toolbars. The feature system decides its own UI placement.
 
 ---
@@ -182,14 +198,17 @@ The foundation does not decide where an action belongs in Blockbench's menus or 
 ## 6. Runtime State
 
 ### Purpose
+
 Provide generic temporary state for SBF systems.
 
 ### Responsibilities
+
 - Store arbitrary runtime values.
 - Retrieve values with optional fallbacks.
 - Delete values.
 
 ### Boundary
+
 This is deliberately ephemeral runtime state.
 
 It is not currently:
@@ -197,7 +216,7 @@ It is not currently:
 - A persistent settings system.
 - A model serialization system.
 
-Blockbench's Property system is specifically designed for undo-aware and project-stored properties, so persistent feature data should be designed separately when needed. citeturn0search4
+Blockbench's Property system is specifically designed for undo-aware and project-stored properties, so persistent feature data should be designed separately when needed. citeturn0search2
 
 ---
 
@@ -216,48 +235,136 @@ Future SBF systems receive a controlled API containing:
 Internal runtime maps and implementation details remain private.
 
 ### Goal
+
 Future systems should depend on stable SBF contracts rather than reaching into internal implementation details.
 
 ---
 
-# What the Foundation Does NOT Do
+# Release 2.0.0
 
-The 1.0.0 foundation intentionally does not:
+## Bone Rig System — Initial Build
 
-- Build bones.
-- Create rigs.
-- Implement IK.
-- Modify model geometry.
-- Generate weapons.
-- Generate PBR maps.
-- Perform rendering.
-- Implement mobile optimization.
-- Assume Minecraft-only workflows.
-- Assume every feature is an animation feature.
-- Decide what future systems must build.
-- Replace Blockbench's own undo/project-data systems.
+### Purpose
 
-Those responsibilities belong to future feature systems.
+SBF 2.0.0 introduces the first real feature system: a native Blockbench bone-rig foundation.
+
+The system is designed around Blockbench's existing group/outliner architecture rather than creating a parallel custom bone object model. Blockbench's current reference documentation describes `Group` as a rotatable outliner type and documents group options including name, origin, and rotation. citeturn1search0turn1search1
+
+Blockbench's documentation also describes bones as groups in formats that support group rotation, and identifies parenting and pivot placement as core parts of rig construction. citeturn1search3turn1search8
+
+### Current system ID
+
+`bone_rig`
+
+### Current responsibilities
+
+- Create root bones.
+- Create child bones.
+- Establish parent/child hierarchy through Blockbench's native outliner.
+- Set initial bone pivot/origin.
+- Normalize bone names toward `snake_case`.
+- Create unique names where necessary.
+- Use Blockbench's Undo system for bone creation.
+- Register lightweight SBF rig metadata properties when the Property API is available.
+- Provide a controlled Bone Rig API to future SBF systems.
+
+### Current UI
+
+Two actions are added to the Blockbench Tools menu:
+
+- `SBF: Create Root Bone`
+- `SBF: Create Child Bone`
+
+Root creation prompts for a name and creates the bone at `[0, 0, 0]`.
+
+Child creation requires a selected group/bone, prompts for a name, and creates the child at the selected parent's current origin.
+
+Blockbench's current plugin documentation demonstrates using `Action` objects and adding them to menus, while the Undo API requires edits to be wrapped in `Undo.initEdit` and `Undo.finishEdit`. citeturn0search1turn0search0
+
+### Metadata properties
+
+When Blockbench's `Property` API is available, SBF registers two Group properties:
+
+- `sbf_rig_id`
+- `sbf_bone_role`
+
+The properties are intended for persistent SBF metadata rather than replacing Blockbench's own bone/group data.
+
+Blockbench's Property API supports undo-aware and project-stored properties, and its current reference documentation exposes configurable defaults and descriptions for properties. citeturn0search2turn3search0
+
+### Naming
+
+SBF normalizes requested bone names by:
+- Trimming whitespace.
+- Lowercasing.
+- Replacing unsupported characters with underscores.
+- Removing leading/trailing underscores.
+- Prefixing names that do not begin with a letter.
+- Avoiding duplicate names where possible.
+
+The system does not force a particular model type such as Minecraft. The native Blockbench format determines how the created groups behave as bones.
+
+### Undo and performance
+
+Bone creation is intentionally lightweight:
+- No geometry reconstruction.
+- No procedural mesh generation.
+- No rendering engine.
+- No texture processing.
+- No large per-frame computation.
+
+This is important for the user's mobile Blockbench workflow.
+
+The current implementation uses Blockbench's native Undo system and outliner objects rather than maintaining a second heavy scene representation. citeturn0search0
 
 ---
 
-# Planned First Feature System: Bone Builder
+# Bone Rig API
 
-The first major SBF feature is still planned to be a bone-building/rigging system.
+The registered `bone_rig` system exposes:
 
-The practical target includes models such as guns, while keeping the implementation generic enough for other models.
+- `createBone(name, parent, origin)`
+- `getSelectedGroups()`
+- `getActiveParent()`
+- `getStatus()`
 
-Potential responsibilities:
-- Bone creation.
-- Bone naming.
-- Parent/child relationships.
-- Bone transforms.
-- Pivot handling.
-- Binding model parts/groups.
-- Animation integration.
-- Later constraints and IK.
+This API is intentionally small. Future rig features should build on these operations rather than directly modifying the system's internal implementation.
 
-The Bone Builder must consume the foundation rather than becoming part of the foundation itself.
+---
+
+# Current Bone Rig Boundaries
+
+The 2.0.0 initial Bone Rig system does NOT yet implement:
+
+- Automatic IK.
+- Constraints.
+- Automatic weight painting.
+- Skin deformation.
+- Procedural weapon generation.
+- Automatic geometry reconstruction.
+- Animation keyframe generation.
+- Advanced rig controls.
+- Automatic conversion of arbitrary geometry into a complete rig.
+
+Those are separate future layers.
+
+---
+
+# What the Foundation Still Does NOT Do
+
+SBF remains domain-neutral outside the Bone Rig system.
+
+The core foundation still does not:
+
+- Assume every future feature is a bone feature.
+- Implement mobile optimization.
+- Implement PBR.
+- Implement rendering.
+- Generate height maps.
+- Reconstruct models from textures.
+- Force all future systems into the Bone Rig architecture.
+
+The Bone Rig system is a consumer of the foundation, not a replacement for it.
 
 ---
 
@@ -266,25 +373,31 @@ The Bone Builder must consume the foundation rather than becoming part of the fo
 ## 2026-09-17 — Initial Loader
 
 ### Feature added
+
 SBF 1.0.0 canonical loader.
 
 ### Implementation
+
 Created `sbf.js` as the single executable plugin entry point.
 
 ### Reason
+
 Establish a clean, version-controlled entry point before implementing the larger SBF architecture.
 
 ### Verification
-Code structure was reviewed against current Blockbench plugin registration/lifecycle documentation. Runtime execution in Blockbench was not performed.
+
+Code structure was reviewed against current Blockbench plugin registration/lifecycle documentation. Runtime execution in Blockbench was not performed at that stage.
 
 ---
 
 ## 2026-09-17 — Core Foundation
 
 ### Feature added
+
 General-purpose SBF core foundation.
 
 ### Implementation
+
 Expanded `sbf.js` with:
 - Private runtime state.
 - Domain-neutral system registry.
@@ -298,27 +411,72 @@ Expanded `sbf.js` with:
 - Centralized unload cleanup.
 
 ### Purpose
+
 Create a strong base that can support Bone Builder as well as future systems that have nothing to do with bones.
 
-### Architectural rule
-The foundation must remain feature-agnostic. New systems should plug into the foundation rather than forcing the foundation to understand their domain.
+### Verification
 
-### Expected behavior
-When SBF loads:
-1. Blockbench validates and registers the plugin.
-2. SBF marks its runtime as loaded.
-3. The load confirmation is displayed.
-4. Future systems can register through the controlled SBF API.
-5. Runtime resources can be cleaned up through the centralized lifecycle.
+The updated source was committed to GitHub and later loaded successfully by the user in Blockbench. This confirms the user's reported runtime load test for the 1.0.0 foundation.
 
-When SBF unloads:
-1. Registered runtime resources are cleaned up.
-2. Registered systems receive unload handling.
-3. Runtime state is cleared.
-4. SBF returns to an unloaded state.
+---
+
+## 2026-09-17 — Bone Rig System 2.0.0
+
+### Feature added
+
+Initial native Bone Rig system.
+
+### Implementation
+
+Expanded `sbf.js` with:
+- Bone Rig system registration.
+- Native `Group`-based bone creation.
+- Root bone creation.
+- Child bone creation.
+- Parent-child hierarchy through `Group.addTo`.
+- Pivot/origin initialization.
+- Name normalization and uniqueness handling.
+- Optional Group Property metadata.
+- Undo-wrapped creation operations.
+- Tools menu actions.
+- Controlled Bone Rig API.
+- Status reporting.
+
+### Architectural decision
+
+The system uses Blockbench's native groups as the bone representation. Blockbench's current reference docs expose `Group` construction, initialization, parenting with `addTo`, origin/rotation data, and group behavior relevant to rigging. citeturn1search0turn1search1turn2search0
+
+This avoids creating a parallel bone engine that would have to be synchronized with Blockbench.
+
+### Constraints
+
+- Must remain lightweight enough for mobile use.
+- Must use native Blockbench data structures.
+- Must remain generic rather than Minecraft-only.
+- Must not introduce a custom renderer.
+- Must keep advanced rigging features modular.
 
 ### Verification
-The updated source was committed to GitHub. Static code/API review was performed; runtime execution inside Blockbench has not yet been performed.
+
+The code was reviewed against current Blockbench reference documentation. The 2.0.0 Bone Rig implementation has NOT yet been runtime-tested by the user in Blockbench.
+
+---
+
+# Next Planned Bone Rig Layers
+
+After the initial creation layer is verified, the next layers can be added incrementally:
+
+1. Bone selection/active-rig management.
+2. Bind selected model groups/elements to a bone.
+3. Re-parenting tools.
+4. Pivot editing helpers.
+5. Bone transform utilities.
+6. Animation integration.
+7. Rig presets.
+8. Constraints.
+9. IK.
+
+Each layer should be tested before the next layer is added.
 
 ---
 
