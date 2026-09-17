@@ -1,21 +1,17 @@
 /*
  * SBF — System Forge
- * Core Foundation
+ * Core Foundation + Bone Rig System
  *
- * Release: 1.0.0
+ * Release: 2.0.0
  *
  * SBF is a general-purpose Blockbench system framework.
  * "Forge" is the project name, not a restriction on the feature domain.
- *
- * The foundation does not know what a future system is supposed to build.
- * Bones are one possible system. Exporters, generators, animation tools,
- * analysis tools, utilities, and other systems can use the same foundation.
  */
 
 (() => {
     'use strict';
 
-    const VERSION = '1.0.0';
+    const VERSION = '2.0.0';
     const PLUGIN_ID = 'sbf';
     const TITLE = 'SBF — System Forge';
 
@@ -25,12 +21,6 @@
         title: TITLE
     });
 
-    /*
-     * Private runtime.
-     *
-     * Nothing is placed on window/globalThis. This keeps SBF isolated from
-     * other plugins and makes lifecycle ownership explicit.
-     */
     const runtime = {
         loaded: false,
         systems: new Map(),
@@ -40,9 +30,7 @@
     };
 
     function assert(condition, message) {
-        if (!condition) {
-            throw new Error('[SBF] ' + message);
-        }
+        if (!condition) throw new Error('[SBF] ' + message);
     }
 
     function validateRuntime() {
@@ -51,10 +39,7 @@
             typeof Plugin.register === 'function',
             'Blockbench Plugin.register is unavailable.'
         );
-        assert(
-            typeof Blockbench !== 'undefined',
-            'The Blockbench API is unavailable.'
-        );
+        assert(typeof Blockbench !== 'undefined', 'The Blockbench API is unavailable.');
     }
 
     function validateId(id, type) {
@@ -76,9 +61,22 @@
         }
     }
 
+    function showMessage(message, title = 'SBF') {
+        if (typeof Blockbench.showMessageBox === 'function') {
+            Blockbench.showMessageBox({
+                title,
+                message,
+                icon: 'info'
+            });
+        } else if (typeof Blockbench.showQuickMessage === 'function') {
+            Blockbench.showQuickMessage(message, 3000);
+        } else if (typeof Blockbench.showStatusMessage === 'function') {
+            Blockbench.showStatusMessage(message, 3000);
+        }
+    }
+
     function showLoadConfirmation() {
         const message = TITLE + ' v' + VERSION + ' has been loaded.';
-
         if (typeof Blockbench.showMessageBox === 'function') {
             Blockbench.showMessageBox({
                 title: 'SBF Loader',
@@ -92,12 +90,6 @@
         }
     }
 
-    /*
-     * Lifecycle ownership
-     *
-     * Systems can register cleanup functions here. SBF owns their final
-     * execution when the plugin unloads.
-     */
     function addCleanup(cleanup) {
         assert(typeof cleanup === 'function', 'Cleanup must be a function.');
         runtime.cleanups.push(cleanup);
@@ -108,9 +100,7 @@
             active = false;
 
             const index = runtime.cleanups.indexOf(cleanup);
-            if (index !== -1) {
-                runtime.cleanups.splice(index, 1);
-            }
+            if (index !== -1) runtime.cleanups.splice(index, 1);
 
             try {
                 cleanup();
@@ -120,12 +110,6 @@
         };
     }
 
-    /*
-     * Central event adapter.
-     *
-     * Future systems should use this instead of directly registering
-     * Blockbench listeners so unload cleanup remains automatic.
-     */
     function listen(eventId, callback) {
         assert(typeof Blockbench.on === 'function', 'Blockbench event API is unavailable.');
         assert(typeof callback === 'function', 'Event callback must be a function.');
@@ -139,12 +123,6 @@
         });
     }
 
-    /*
-     * System registry
-     *
-     * A system is a feature domain, not a specific kind of object.
-     * The foundation deliberately does not assume that systems are bones.
-     */
     function registerSystem(id, definition = {}) {
         validateId(id, 'System ID');
         assert(!runtime.systems.has(id), 'System "' + id + '" is already registered.');
@@ -169,9 +147,7 @@
                     system
                 });
 
-                if (typeof cleanup === 'function') {
-                    system._cleanup = cleanup;
-                }
+                if (typeof cleanup === 'function') system._cleanup = cleanup;
             } catch (error) {
                 runtime.systems.delete(id);
                 throw new Error(
@@ -231,40 +207,22 @@
         return Array.from(runtime.systems.keys()).map(getSystemInfo);
     }
 
-    /*
-     * UI action adapter
-     *
-     * This creates one consistent registration path for future tools.
-     * The foundation does not decide which menu or toolbar a system uses.
-     */
     function registerAction(id, options) {
         validateId(id, 'Action ID');
         assert(typeof Action === 'function', 'Blockbench Action API is unavailable.');
         assert(!runtime.actions.has(id), 'Action "' + id + '" is already registered.');
 
-        const action = options instanceof Action
-            ? options
-            : new Action(id, options);
-
+        const action = options instanceof Action ? options : new Action(id, options);
         runtime.actions.set(id, action);
 
         addCleanup(() => {
-            if (action && typeof action.delete === 'function') {
-                action.delete();
-            }
+            if (action && typeof action.delete === 'function') action.delete();
             runtime.actions.delete(id);
         });
 
         return action;
     }
 
-    /*
-     * Generic runtime state.
-     *
-     * This is intentionally ephemeral. Persistent Blockbench project data
-     * and user settings should be implemented through dedicated systems so
-     * the foundation does not impose a storage model on every feature.
-     */
     function setState(key, value) {
         assert(typeof key === 'string' && key.length > 0, 'State key must not be empty.');
         runtime.state.set(key, value);
@@ -279,12 +237,6 @@
         return runtime.state.delete(key);
     }
 
-    /*
-     * Controlled public API.
-     *
-     * This is the contract future SBF systems build against. Internal maps,
-     * cleanup arrays, and implementation details stay private.
-     */
     const publicAPI = Object.freeze({
         identity: IDENTITY,
 
@@ -322,11 +274,288 @@
         warn
     });
 
+    /*
+     * Bone Rig System
+     *
+     * Blockbench represents bones as groups in formats that support bone
+     * rigging. SBF therefore builds on the native Group/outliner system
+     * instead of creating a second custom bone representation.
+     *
+     * Current scope:
+     * - Create root bones.
+     * - Create child bones.
+     * - Store lightweight SBF rig metadata on groups when Property is available.
+     * - Use Blockbench Undo for outliner/selection changes.
+     *
+     * Deliberately deferred:
+     * - IK.
+     * - Constraints.
+     * - Automatic geometry reconstruction.
+     * - Heavy procedural rig generation.
+     */
+    function createBoneRigSystem() {
+        assert(typeof Group === 'function', 'Blockbench Group API is unavailable.');
+
+        const actions = [];
+        let propertyRegistered = false;
+
+        function ensureProperties() {
+            if (propertyRegistered) return;
+
+            if (typeof Property === 'function') {
+                new Property(Group, 'string', 'sbf_rig_id', {
+                    default: '',
+                    label: 'SBF Rig ID',
+                    description: 'Internal SBF rig identifier for this bone.'
+                });
+
+                new Property(Group, 'string', 'sbf_bone_role', {
+                    default: 'bone',
+                    label: 'SBF Bone Role',
+                    description: 'Internal SBF role for this group.'
+                });
+
+                propertyRegistered = true;
+            } else {
+                warn('Blockbench Property API is unavailable; rig metadata properties were not added.');
+            }
+        }
+
+        function getSelectedGroups() {
+            if (!Array.isArray(Group.selected)) return [];
+            return Group.selected.filter(group => group && typeof group.addTo === 'function');
+        }
+
+        function getActiveParent() {
+            const groups = getSelectedGroups();
+            return groups.length ? groups[groups.length - 1] : null;
+        }
+
+        function normalizeBoneName(name, fallback) {
+            let result = String(name || fallback)
+                .trim()
+                .toLowerCase()
+                .replace(/[^a-z0-9_]+/g, '_')
+                .replace(/^_+|_+$/g, '');
+
+            if (!result) result = fallback;
+
+            if (!/^[a-z]/.test(result)) result = 'bone_' + result;
+
+            return result;
+        }
+
+        function makeUniqueBoneName(name, parent) {
+            const bone = new Group({name});
+            if (typeof bone.createUniqueName === 'function') {
+                const unique = bone.createUniqueName();
+                if (unique) return unique;
+            }
+
+            if (parent && Array.isArray(parent.children)) {
+                const names = new Set(
+                    parent.children
+                        .filter(child => child && child.name)
+                        .map(child => child.name)
+                );
+
+                if (!names.has(name)) return name;
+
+                let i = 2;
+                while (names.has(name + '_' + i)) i++;
+                return name + '_' + i;
+            }
+
+            return name;
+        }
+
+        function createBone(name, parent = null, origin = null) {
+            const normalized = normalizeBoneName(name, parent ? 'child_bone' : 'root');
+            const uniqueName = makeUniqueBoneName(normalized, parent);
+
+            const bone = new Group({
+                name: uniqueName,
+                origin: origin ? origin.slice() : [0, 0, 0],
+                rotation: [0, 0, 0],
+                selected: true,
+                isOpen: true
+            });
+
+            bone.init();
+            bone.addTo(parent || 'root');
+
+            if ('sbf_bone_role' in bone) bone.sbf_bone_role = 'bone';
+            if ('sbf_rig_id' in bone && typeof Blockbench.bbuid === 'function') {
+                bone.sbf_rig_id = Blockbench.bbuid(10);
+            }
+
+            if (typeof bone.markAsSelected === 'function') {
+                bone.markAsSelected();
+            }
+
+            return bone;
+        }
+
+        function withUndo(label, callback) {
+            assert(typeof Undo !== 'undefined', 'Blockbench Undo API is unavailable.');
+
+            Undo.initEdit({
+                outliner: true,
+                selection: true
+            });
+
+            try {
+                const result = callback();
+
+                Undo.finishEdit(label, {
+                    outliner: true,
+                    selection: true
+                });
+
+                if (typeof Canvas !== 'undefined' && typeof Canvas.updateView === 'function') {
+                    Canvas.updateView({
+                        selection: true
+                    });
+                }
+
+                return result;
+            } catch (error) {
+                warn('Bone operation failed.', error);
+                throw error;
+            }
+        }
+
+        function promptForName(title, defaultName, callback) {
+            if (typeof Blockbench.textPrompt !== 'function') {
+                callback(defaultName);
+                return;
+            }
+
+            Blockbench.textPrompt(title, defaultName, text => {
+                if (typeof text === 'string' && text.trim()) callback(text);
+            });
+        }
+
+        function createRootBone() {
+            promptForName('Create Root Bone', 'root', name => {
+                try {
+                    const bone = withUndo('SBF: Create Root Bone', () =>
+                        createBone(name, null, [0, 0, 0])
+                    );
+
+                    showMessage('Created root bone "' + bone.name + '".', 'SBF Bone Rig');
+                } catch (error) {
+                    showMessage(
+                        'Could not create the root bone.\n\n' +
+                        (error && error.message ? error.message : error),
+                        'SBF Bone Rig Error'
+                    );
+                }
+            });
+        }
+
+        function createChildBone() {
+            const parent = getActiveParent();
+
+            if (!parent) {
+                showMessage(
+                    'Select a bone/group first. SBF will use the selected group as the parent.',
+                    'SBF Bone Rig'
+                );
+                return;
+            }
+
+            const origin = Array.isArray(parent.origin)
+                ? parent.origin.slice()
+                : [0, 0, 0];
+
+            promptForName('Create Child Bone', 'child_bone', name => {
+                try {
+                    const bone = withUndo('SBF: Create Child Bone', () =>
+                        createBone(name, parent, origin)
+                    );
+
+                    showMessage(
+                        'Created "' + bone.name + '" under "' + parent.name + '".',
+                        'SBF Bone Rig'
+                    );
+                } catch (error) {
+                    showMessage(
+                        'Could not create the child bone.\n\n' +
+                        (error && error.message ? error.message : error),
+                        'SBF Bone Rig Error'
+                    );
+                }
+            });
+        }
+
+        function getSystemStatus() {
+            return Object.freeze({
+                id: 'bone_rig',
+                title: 'Bone Rig',
+                version: VERSION,
+                group_api: true,
+                property_api: propertyRegistered,
+                mobile_safe_design: true
+            });
+        }
+
+        function onload() {
+            ensureProperties();
+
+            const rootAction = registerAction('sbf_create_root_bone', {
+                name: 'SBF: Create Root Bone',
+                description: 'Create a new root bone at the model origin.',
+                icon: 'account_tree',
+                click: createRootBone
+            });
+
+            const childAction = registerAction('sbf_create_child_bone', {
+                name: 'SBF: Create Child Bone',
+                description: 'Create a child bone under the selected bone/group.',
+                icon: 'subdirectory_arrow_right',
+                condition: () => true,
+                click: createChildBone
+            });
+
+            actions.push(rootAction, childAction);
+
+            if (typeof MenuBar !== 'undefined' &&
+                MenuBar.menus &&
+                MenuBar.menus.tools &&
+                typeof MenuBar.menus.tools.addAction === 'function') {
+                MenuBar.menus.tools.addAction(rootAction);
+                MenuBar.menus.tools.addAction(childAction);
+            } else {
+                warn('Tools menu is unavailable; Bone Rig actions were registered but not attached to the Tools menu.');
+            }
+
+            setState('bone_rig.status', getSystemStatus());
+            log('Bone Rig system loaded.');
+        }
+
+        function onunload() {
+            actions.length = 0;
+            deleteState('bone_rig.status');
+            log('Bone Rig system unloaded.');
+        }
+
+        return {
+            id: 'bone_rig',
+            title: 'Bone Rig',
+            version: VERSION,
+            api: Object.freeze({
+                createBone,
+                getSelectedGroups,
+                getActiveParent,
+                getStatus: getSystemStatus
+            }),
+            onload,
+            onunload
+        };
+    }
+
     function clearRuntime() {
-        /*
-         * Actions/listeners/other generic resources are released through
-         * their registered cleanup functions.
-         */
         for (let i = runtime.cleanups.length - 1; i >= 0; i--) {
             try {
                 runtime.cleanups[i]();
@@ -337,9 +566,6 @@
 
         runtime.cleanups.length = 0;
 
-        /*
-         * Systems get an explicit unload lifecycle as well.
-         */
         for (const id of Array.from(runtime.systems.keys()).reverse()) {
             unregisterSystem(id);
         }
@@ -362,7 +588,10 @@
         onload() {
             runtime.loaded = true;
             showLoadConfirmation();
-            log('Core foundation loaded: v' + VERSION);
+
+            registerSystem('bone_rig', createBoneRigSystem());
+
+            log('Core foundation + Bone Rig system loaded: v' + VERSION);
         },
 
         onunload() {
